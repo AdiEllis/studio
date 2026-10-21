@@ -6,7 +6,8 @@ const REPO = 'Marketing-team';
 const LABEL = 'studio';
 const WORKFLOW = 'studio.yml';
 const API = 'https://api.github.com';
-const BOT_SYS = /^(⏳|⚠️)/;
+const BOT_SYS = /^(⏳|⚠️|✓ \*\*)/;
+const PROGRESS = /^(⏳|✓|⚠️) \*\*/; // the run's live checklist (studio/tools/progress.sh)
 
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -82,17 +83,23 @@ async function runsByIssue() {
     for (const r of data.workflow_runs) {
       if (r.conclusion === 'skipped' || r.conclusion === 'cancelled') continue;
       const m = /^studio #(\d+)$/.exec(r.display_title || '');
-      if (m && !out[m[1]]) out[m[1]] = r; // newest first
+      if (m) (out[m[1]] = out[m[1]] || []).push(r); // newest first
     }
   } catch { /* no Actions permission: statuses just stay unknown */ }
   return out;
 }
 
-function statusOf(run, issue) {
+// A message she sends while the team works waits in line (one run per project at a time), so say so.
+function statusOf(runs, issue) {
   if (issue.state === 'closed') return ['הסתיים', 'ok'];
-  if (!run) return ['ממתין לצוות', 'work'];
-  if (run.status !== 'completed') return ['הצוות עובד…', 'work'];
-  if (run.conclusion === 'failure' || run.conclusion === 'timed_out') return ['נעצר בתקלה', 'bad'];
+  if (!runs || !runs.length) return ['ממתין לצוות', 'work'];
+  const active = runs.some((r) => r.status === 'in_progress');
+  const waiting = runs.some((r) => ['queued', 'pending', 'waiting', 'requested'].includes(r.status));
+  if (active && waiting) return ['הצוות עובד, וההודעה שלך התקבלה ומחכה בתור', 'work'];
+  if (active) return ['הצוות עובד…', 'work'];
+  if (waiting) return ['ההודעה שלך התקבלה, הצוות מתחיל', 'work'];
+  const last = runs[0];
+  if (last.conclusion === 'failure' || last.conclusion === 'timed_out') return ['נעצר בתקלה', 'bad'];
   return ['ממתין לך', 'ok'];
 }
 
@@ -100,7 +107,7 @@ function statusOf(run, issue) {
 function show(view) {
   for (const v of ['viewSetup', 'viewList', 'viewNew', 'viewProject']) $(v).classList.toggle('hidden', v !== view);
   $('navHome').classList.toggle('hidden', view === 'viewList' || view === 'viewSetup');
-  clearInterval(pollTimer);
+  clearTimeout(pollTimer);
 }
 
 function md(text) {
@@ -166,7 +173,8 @@ async function openProject(num) {
       add('אני', 'me', issue.body);
       for (const c of comments) {
         const mine = c.user.login.toLowerCase() === OWNER.toLowerCase();
-        if (!mine && BOT_SYS.test(c.body)) add('', 'sys', c.body);
+        if (!mine && PROGRESS.test(c.body)) add('', 'note', c.body);
+        else if (!mine && BOT_SYS.test(c.body)) add('', 'sys', c.body);
         else add(mine ? 'אני' : 'צוות השיווק', mine ? 'me' : 'team', c.body);
       }
       if (meta) await renderFiles(meta);
@@ -176,7 +184,15 @@ async function openProject(num) {
   };
   const meta = await render();
   $('pSend').onclick = () => sendReply(num, meta, render);
-  pollTimer = setInterval(() => { if (!document.hidden) render(); }, 20000);
+  // poll faster while the team works, so the progress note feels live
+  const tick = async () => {
+    if (location.hash !== `#/p/${num}`) return; // she left this project
+    if (!document.hidden) await render();
+    if (location.hash !== `#/p/${num}`) return;
+    const working = $('pStatus').classList.contains('work');
+    pollTimer = setTimeout(tick, working ? 8000 : 20000);
+  };
+  pollTimer = setTimeout(tick, 8000);
 }
 
 // The repo is private, so files come through the API with her token (raw.githubusercontent would 404).
@@ -320,6 +336,8 @@ async function sendReply(num, meta, render) {
     await gh(`/issues/${num}/comments`, { method: 'POST', body: { body: (text || 'עוד קבצים') + note } });
     $('pReply').value = ''; replyPick.clear(); prog('');
     await render();
+    // GitHub takes a few seconds to queue the run; until then the badge would still say "waiting for you"
+    if (!$('pStatus').classList.contains('work')) { $('pStatus').textContent = 'ההודעה נשלחה, הצוות מתחיל עוד רגע'; $('pStatus').className = 'badge work'; }
     window.scrollTo(0, document.body.scrollHeight);
   } catch (e) { prog(`משהו השתבש: ${e.message}`, true); }
   $('pSend').disabled = false;

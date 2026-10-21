@@ -57,6 +57,8 @@ button:disabled { opacity: .5; cursor: default; }
 .msg.team { background: var(--card); border: 1px solid var(--line); margin-left: auto; }
 .msg.me { background: var(--mine); margin-right: auto; }
 .msg.sys { background: transparent; color: var(--muted); font-size: 14px; padding: 4px 14px; margin: 4px auto 4px 0; }
+.msg.note { background: var(--card); border: 1px dashed var(--brown); margin: 10px 0; max-width: 100%; font-size: 15px; }
+.msg.note ul { margin: 0; padding: 0 18px 0 0; }
 .msg .who { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
 .msg img, .msg video { max-width: 100%; border-radius: 8px; }
 .msg p { margin: 0 0 8px; } .msg p:last-child { margin: 0; }
@@ -67,6 +69,7 @@ button:disabled { opacity: .5; cursor: default; }
 .file .name { font-size: 13px; padding: 6px 8px; color: var(--muted); overflow-wrap: anywhere; flex: 1; }
 .file button { margin: 0 8px 8px; padding: 6px; font-size: 14px; }
 .status { margin: 0 0 12px; }
+.status .badge { white-space: normal; display: inline-block; }
 .progress { color: var(--muted); font-size: 14px; margin-top: 10px; min-height: 1.4em; }
 .err { color: var(--bad); }
 .hidden { display: none !important; }
