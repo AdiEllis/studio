@@ -144,7 +144,9 @@ async function loadList() {
 async function openProject(num) {
   show('viewProject');
   $('pThread').innerHTML = '<p class="hint">טוען…</p>';
-  $('pFiles').textContent = '';
+  delete $('pThread').dataset.key;
+  $('pFiles').textContent = ''; delete $('pFiles').dataset.key;
+  $('pFilesCard').classList.add('hidden'); $('pFilesPanel').classList.add('hidden'); $('pNew').classList.add('hidden');
   const render = async () => {
     try {
       const [issue, comments, runs] = await Promise.all([
@@ -155,30 +157,39 @@ async function openProject(num) {
       const [label, cls] = statusOf(runs[num], issue);
       $('pStatus').textContent = label; $('pStatus').className = `badge ${cls}`;
       const thread = $('pThread');
-      const atBottom = window.innerHeight + window.scrollY >= document.body.scrollHeight - 40;
-      thread.textContent = '';
-      const add = (who, cls, body) => {
-        const d = document.createElement('div');
-        d.className = `msg ${cls}`;
-        d.innerHTML = (who ? `<div class="who">${who}</div>` : '') + md(body);
-        // the team shows images by repo path (e.g. a review sheet); load them through the API
-        if (meta) d.querySelectorAll('img').forEach((img) => {
-          const src = img.getAttribute('src') || '';
-          if (/^(https?:|data:|blob:)/.test(src)) return;
-          img.removeAttribute('src');
-          fileBlob(src.replace(/^\/+/, ''), meta.branch).then((b) => { img.src = URL.createObjectURL(b); }).catch(() => {});
-        });
-        thread.appendChild(d);
-      };
-      add('אני', 'me', issue.body);
-      for (const c of comments) {
-        const mine = c.user.login.toLowerCase() === OWNER.toLowerCase();
-        if (!mine && PROGRESS.test(c.body)) add('', 'note', c.body);
-        else if (!mine && BOT_SYS.test(c.body)) add('', 'sys', c.body);
-        else add(mine ? 'אני' : 'צוות השיווק', mine ? 'me' : 'team', c.body);
+      // rebuild only when something changed, so images and scroll position stay put between polls
+      const key = [issue.body, ...comments.map((c) => c.id + c.updated_at)].join('|');
+      if (thread.dataset.key !== key) {
+        const first = !thread.dataset.key;
+        const before = thread.childElementCount;
+        const atBottom = window.innerHeight + window.scrollY >= document.body.scrollHeight - 160;
+        thread.dataset.key = key;
+        thread.textContent = '';
+        const add = (who, cls, body) => {
+          const d = document.createElement('div');
+          d.className = `msg ${cls}`;
+          d.innerHTML = (who ? `<div class="who">${who}</div>` : '') + md(body);
+          // the team shows images by repo path (e.g. a review sheet); load them through the API
+          if (meta) d.querySelectorAll('img').forEach((img) => {
+            const src = img.getAttribute('src') || '';
+            if (/^(https?:|data:|blob:)/.test(src)) return;
+            img.removeAttribute('src');
+            fileBlob(src.replace(/^\/+/, ''), meta.branch).then((b) => { img.src = URL.createObjectURL(b); }).catch(() => {});
+          });
+          thread.appendChild(d);
+        };
+        add('אני', 'me', issue.body);
+        for (const c of comments) {
+          const mine = c.user.login.toLowerCase() === OWNER.toLowerCase();
+          if (!mine && PROGRESS.test(c.body)) add('', 'note', c.body);
+          else if (!mine && BOT_SYS.test(c.body)) add('', 'sys', c.body);
+          else add(mine ? 'אני' : 'צוות השיווק', mine ? 'me' : 'team', c.body);
+        }
+        // like a messaging app: newest at the bottom; if she scrolled up to read, tell her instead of jumping
+        if (first || atBottom) scrollToEnd();
+        else if (thread.childElementCount > before) $('pNew').classList.remove('hidden');
       }
       if (meta) await renderFiles(meta);
-      if (atBottom) window.scrollTo(0, document.body.scrollHeight);
       return meta;
     } catch (e) { $('pThread').innerHTML = `<p class="err">לא הצלחתי לטעון (${e.message}).</p>`; }
   };
@@ -205,13 +216,16 @@ async function fileBlob(path, ref) {
 }
 
 const blobUrls = [];
+let readyFiles = { items: [] };
 async function renderFiles({ branch, slug }) {
   const box = $('pFiles');
   let items = [];
   try { items = await gh(`/contents/projects/${slug}/output?ref=${encodeURIComponent(branch)}`); }
   catch (e) { if (e.status !== 404) throw e; }
   items = (items || []).filter((f) => f.type === 'file');
+  readyFiles = { items, branch, slug };
   $('pFilesCard').classList.toggle('hidden', !items.length);
+  $('pFilesCount').textContent = items.length;
   const key = items.map((f) => f.sha).join();
   if (box.dataset.key === key) return; // unchanged: keep playing videos alive
   box.dataset.key = key;
@@ -252,6 +266,28 @@ async function download(f, branch, btn) {
     a.href = URL.createObjectURL(await fileBlob(f.path, branch)); a.download = f.name; a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     btn.textContent = 'הורדה';
+  } catch { btn.textContent = 'ההורדה נכשלה, לנסות שוב'; }
+  btn.disabled = false;
+}
+
+function scrollToEnd() { requestAnimationFrame(() => window.scrollTo(0, document.body.scrollHeight)); $('pNew').classList.add('hidden'); }
+
+// One button for everything that is ready: a single zip (on a phone, separate downloads each ask again).
+async function downloadAll(btn) {
+  const { items, branch, slug } = readyFiles;
+  if (!items.length) return;
+  btn.disabled = true;
+  try {
+    const zip = new JSZip();
+    for (let i = 0; i < items.length; i++) {
+      btn.textContent = `מכין ${i + 1}/${items.length}…`;
+      zip.file(items[i].name, await fileBlob(items[i].path, branch));
+    }
+    btn.textContent = 'אורז…';
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(await zip.generateAsync({ type: 'blob' })); a.download = `${slug}.zip`; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    btn.textContent = 'הורדת הכול';
   } catch { btn.textContent = 'ההורדה נכשלה, לנסות שוב'; }
   btn.disabled = false;
 }
@@ -336,9 +372,9 @@ async function sendReply(num, meta, render) {
     await gh(`/issues/${num}/comments`, { method: 'POST', body: { body: (text || 'עוד קבצים') + note } });
     $('pReply').value = ''; replyPick.clear(); prog('');
     await render();
+    scrollToEnd();
     // GitHub takes a few seconds to queue the run; until then the badge would still say "waiting for you"
     if (!$('pStatus').classList.contains('work')) { $('pStatus').textContent = 'ההודעה נשלחה, הצוות מתחיל עוד רגע'; $('pStatus').className = 'badge work'; }
-    window.scrollTo(0, document.body.scrollHeight);
   } catch (e) { prog(`משהו השתבש: ${e.message}`, true); }
   $('pSend').disabled = false;
 }
@@ -357,6 +393,13 @@ async function saveToken() {
 
 // ---------- wiring ----------
 $('tokenSave').onclick = saveToken;
+$('pZip').onclick = () => downloadAll($('pZip'));
+$('pFilesToggle').onclick = () => {
+  const open = $('pFilesPanel').classList.toggle('hidden') === false;
+  $('pFilesToggle').setAttribute('aria-expanded', String(open));
+};
+$('pNew').onclick = scrollToEnd;
+$('pReply').addEventListener('input', () => { const t = $('pReply'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 160) + 'px'; });
 $('navHome').onclick = () => { location.hash = '#/'; };
 $('navNew').onclick = () => { location.hash = '#/new'; };
 $('nCancel').onclick = () => { location.hash = '#/'; };
