@@ -217,6 +217,17 @@ async function fileBlob(path, ref) {
 
 const blobUrls = [];
 let readyFiles = { items: [] };
+// Fetched files stay in memory (by sha): the share sheet must open inside her tap, with no download in between.
+const blobCache = new Map();
+async function getBlob(f, branch) {
+  if (!blobCache.has(f.sha)) blobCache.set(f.sha, fileBlob(f.path, branch).catch((e) => { blobCache.delete(f.sha); throw e; }));
+  return blobCache.get(f.sha);
+}
+const MEDIA = /\.(jpe?g|png|webp|mp4|mov)$/i;
+const MIME = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', mp4: 'video/mp4', mov: 'video/quicktime' };
+const asFile = (f, blob) => new File([blob], f.name, { type: MIME[f.name.split('.').pop().toLowerCase()] || blob.type });
+// On a phone the share sheet has "Save to Photos" / gallery, which is where she posts to Instagram from.
+const canShareFiles = () => { try { return !!navigator.canShare && navigator.canShare({ files: [new File(['x'], 'x.jpg', { type: 'image/jpeg' })] }); } catch { return false; } };
 async function renderFiles({ branch, slug }) {
   const box = $('pFiles');
   let items = [];
@@ -229,9 +240,12 @@ async function renderFiles({ branch, slug }) {
   const key = items.map((f) => f.sha).join();
   if (box.dataset.key === key) return; // unchanged: keep playing videos alive
   box.dataset.key = key;
+  resetSaveAll();
+  // load the photos and the reel in the background, so "save to gallery" opens at once
+  (async () => { for (const f of items.filter((x) => MEDIA.test(x.name))) await getBlob(f, branch).catch(() => {}); })();
   box.textContent = '';
   blobUrls.splice(0).forEach((u) => URL.revokeObjectURL(u));
-  const objectUrl = async (f) => { const u = URL.createObjectURL(await fileBlob(f.path, branch)); blobUrls.push(u); return u; };
+  const objectUrl = async (f) => { const u = URL.createObjectURL(await getBlob(f, branch)); blobUrls.push(u); return u; };
   for (const f of items) {
     const el = document.createElement('div');
     el.className = 'file';
@@ -252,8 +266,9 @@ async function renderFiles({ branch, slug }) {
       el.appendChild(play);
     }
     const name = document.createElement('div'); name.className = 'name'; name.textContent = f.name === 'captions.md' ? 'כיתובים' : f.name;
-    const btn = document.createElement('button'); btn.textContent = 'הורדה';
-    btn.onclick = () => download(f, branch, btn);
+    const toGallery = MEDIA.test(f.name) && canShareFiles();
+    const btn = document.createElement('button'); btn.textContent = toGallery ? 'שמירה לגלריה' : 'הורדה';
+    btn.onclick = () => (toGallery ? saveAll([f], btn, 'שמירה לגלריה') : download(f, branch, btn));
     el.append(name, btn);
     box.appendChild(el);
   }
@@ -262,33 +277,41 @@ async function renderFiles({ branch, slug }) {
 async function download(f, branch, btn) {
   btn.disabled = true; btn.textContent = 'מוריד…';
   try {
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(await fileBlob(f.path, branch)); a.download = f.name; a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    saveBlob(await getBlob(f, branch), f.name);
     btn.textContent = 'הורדה';
   } catch { btn.textContent = 'ההורדה נכשלה, לנסות שוב'; }
   btn.disabled = false;
 }
 
+function saveBlob(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+
 function scrollToEnd() { requestAnimationFrame(() => window.scrollTo(0, document.body.scrollHeight)); $('pNew').classList.add('hidden'); }
 
-// One button for everything that is ready: a single zip (on a phone, separate downloads each ask again).
-async function downloadAll(btn) {
-  const { items, branch, slug } = readyFiles;
-  if (!items.length) return;
+function resetSaveAll() { $('pZip').textContent = canShareFiles() ? 'שמירה לגלריה' : 'הורדת הכול'; $('pZip').disabled = false; }
+
+// Phone: one share sheet with all photos and the reel -> "Save N items" puts them straight in the gallery.
+// Computer: each file downloads on its own (no zip).
+async function saveAll(files, btn, label) {
+  const { branch } = readyFiles;
+  if (!files.length) return;
+  const share = canShareFiles();
+  const settled = await Promise.all(files.map((f) => Promise.race([blobCache.get(f.sha), null]).then((b) => b || null).catch(() => null)));
+  const ready = settled.every(Boolean);
+  if (share && ready) {
+    try { await navigator.share({ files: files.map((f, i) => asFile(f, settled[i])) }); } catch { /* she closed the sheet */ }
+    btn.textContent = label; return;
+  }
   btn.disabled = true;
   try {
-    const zip = new JSZip();
-    for (let i = 0; i < items.length; i++) {
-      btn.textContent = `מכין ${i + 1}/${items.length}…`;
-      zip.file(items[i].name, await fileBlob(items[i].path, branch));
-    }
-    btn.textContent = 'אורז…';
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(await zip.generateAsync({ type: 'blob' })); a.download = `${slug}.zip`; a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
-    btn.textContent = 'הורדת הכול';
-  } catch { btn.textContent = 'ההורדה נכשלה, לנסות שוב'; }
+    const blobs = [];
+    for (let i = 0; i < files.length; i++) { btn.textContent = `טוען ${i + 1}/${files.length}…`; blobs.push(await getBlob(files[i], branch)); }
+    if (share) { btn.textContent = 'מוכן ✓ לחצי שוב לשמירה'; } // the browser only opens the sheet straight from a tap
+    else { for (let i = 0; i < files.length; i++) { saveBlob(blobs[i], files[i].name); await new Promise((r) => setTimeout(r, 400)); } btn.textContent = label; }
+  } catch { btn.textContent = 'נכשל, לנסות שוב'; }
   btn.disabled = false;
 }
 
@@ -393,7 +416,10 @@ async function saveToken() {
 
 // ---------- wiring ----------
 $('tokenSave').onclick = saveToken;
-$('pZip').onclick = () => downloadAll($('pZip'));
+$('pZip').onclick = () => {
+  const media = readyFiles.items.filter((f) => MEDIA.test(f.name));
+  saveAll(canShareFiles() ? media : readyFiles.items, $('pZip'), canShareFiles() ? 'שמירה לגלריה' : 'הורדת הכול');
+};
 $('pFilesToggle').onclick = () => {
   const open = $('pFilesPanel').classList.toggle('hidden') === false;
   $('pFilesToggle').setAttribute('aria-expanded', String(open));
