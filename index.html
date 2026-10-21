@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="he">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>סטודיו אבן ועץ</title>
+<link rel="icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Hebrew:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<style>
+:root {
+  --bg: #f3ede4; --card: #fffaf3; --ink: #1c1816; --muted: #8f8476; --line: #ddd4c7;
+  --brown: #7a5a43; --brown-ink: #fffaf3; --gold: #d8b878; --mine: #efe6da; --ok: #4f7a4a; --bad: #a4483a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1c1816; --card: #26211d; --ink: #f3ede4; --muted: #a89c8d; --line: #3d352e;
+    --brown: #b08463; --brown-ink: #1c1816; --gold: #d8b878; --mine: #332b24; --ok: #8fbf88; --bad: #e08a7c;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 "IBM Plex Sans Hebrew", system-ui, sans-serif; direction: rtl; }
+header { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); background: var(--card); position: sticky; top: 0; z-index: 2; }
+header img { height: 44px; }
+header h1 { font-size: 18px; font-weight: 600; margin: 0; flex: 1; }
+main { max-width: 760px; margin: 0 auto; padding: 20px 16px 80px; }
+h2 { font-size: 20px; font-weight: 600; margin: 0 0 14px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 16px; }
+label { display: block; font-weight: 500; margin: 14px 0 6px; }
+.hint { color: var(--muted); font-size: 14px; }
+input[type=text], input[type=password], textarea, select { width: 100%; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+textarea { min-height: 120px; resize: vertical; }
+button, .btn { font: inherit; font-weight: 500; border: 0; border-radius: 10px; padding: 10px 18px; background: var(--brown); color: var(--brown-ink); cursor: pointer; text-decoration: none; display: inline-block; }
+button.ghost, .btn.ghost { background: transparent; color: var(--brown); border: 1px solid var(--line); }
+button:disabled { opacity: .5; cursor: default; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.choices { display: flex; gap: 8px; flex-wrap: wrap; }
+.choices label { margin: 0; font-weight: 400; border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; cursor: pointer; }
+.choices input { display: none; }
+.choices input:checked + span { font-weight: 600; }
+.choices label:has(input:checked) { border-color: var(--brown); background: var(--mine); }
+.drop { border: 2px dashed var(--line); border-radius: 12px; padding: 22px; text-align: center; color: var(--muted); cursor: pointer; }
+.drop.over { border-color: var(--brown); }
+.thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; margin-top: 10px; }
+.thumbs div { position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: var(--mine); font-size: 12px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 4px; }
+.thumbs img, .thumbs video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.thumbs button { position: absolute; top: 4px; left: 4px; padding: 0 7px; font-size: 14px; border-radius: 6px; z-index: 1; }
+.list a { display: flex; justify-content: space-between; gap: 10px; padding: 14px 4px; border-bottom: 1px solid var(--line); color: var(--ink); text-decoration: none; }
+.list a:last-child { border-bottom: 0; }
+.badge { font-size: 13px; border-radius: 999px; padding: 2px 10px; background: var(--mine); color: var(--muted); white-space: nowrap; }
+.badge.work { color: var(--brown); }
+.badge.bad { color: var(--bad); }
+.badge.ok { color: var(--ok); }
+.msg { border-radius: 14px; padding: 12px 14px; margin: 10px 0; max-width: 92%; overflow-wrap: anywhere; }
+.msg.team { background: var(--card); border: 1px solid var(--line); margin-left: auto; }
+.msg.me { background: var(--mine); margin-right: auto; }
+.msg.sys { background: transparent; color: var(--muted); font-size: 14px; padding: 4px 14px; margin: 4px auto 4px 0; }
+.msg .who { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+.msg img, .msg video { max-width: 100%; border-radius: 8px; }
+.msg p { margin: 0 0 8px; } .msg p:last-child { margin: 0; }
+.files { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.file { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; }
+.file img, .file video, .file .play { width: 100%; aspect-ratio: 4/5; object-fit: cover; background: #000; }
+.file .play { margin: 0; border: 0; border-radius: 0; color: #fff; font-size: 18px; display: flex; align-items: center; justify-content: center; }
+.file .name { font-size: 13px; padding: 6px 8px; color: var(--muted); overflow-wrap: anywhere; flex: 1; }
+.file button { margin: 0 8px 8px; padding: 6px; font-size: 14px; }
+.status { margin: 0 0 12px; }
+.progress { color: var(--muted); font-size: 14px; margin-top: 10px; min-height: 1.4em; }
+.err { color: var(--bad); }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <img src="logo.png" alt="אבן ועץ">
+  <h1>סטודיו השיווק</h1>
+  <button class="ghost hidden" id="navHome">כל הפרויקטים</button>
+</header>
+<main>
+  <!-- one-time connection -->
+  <section id="viewSetup" class="hidden">
+    <div class="card">
+      <h2>חיבור ראשוני</h2>
+      <p class="hint">פעם אחת בלבד: מדביקים כאן את מפתח הגישה ל-GitHub (ההוראות ב-docs/studio-site.md). הוא נשמר רק בדפדפן הזה.</p>
+      <label for="tokenIn">מפתח גישה</label>
+      <input type="password" id="tokenIn" autocomplete="off" dir="ltr" placeholder="github_pat_...">
+      <p class="progress err" id="setupErr"></p>
+      <button id="tokenSave">התחברות</button>
+    </div>
+  </section>
+
+  <!-- projects list -->
+  <section id="viewList" class="hidden">
+    <div class="row" style="justify-content: space-between; margin-bottom: 14px;">
+      <h2 style="margin:0">הפרויקטים שלי</h2>
+      <button id="navNew">+ פרויקט חדש</button>
+    </div>
+    <div class="card list" id="projList"><span class="hint">טוען…</span></div>
+    <button class="ghost" id="logout" style="font-size:14px">התנתקות מהדפדפן הזה</button>
+  </section>
+
+  <!-- new project -->
+  <section id="viewNew" class="hidden">
+    <div class="card">
+      <h2>פרויקט חדש</h2>
+      <label for="nTitle">שם הפרויקט</label>
+      <input type="text" id="nTitle" placeholder="למשל: מטבח שמנת בהרצליה">
+      <label for="nBrief">מה רוצים שיידעו (הבריף)</label>
+      <textarea id="nBrief" placeholder="מה עשינו, חומרים, מה מיוחד, מה חשוב להראות…"></textarea>
+      <label>מה להפיק</label>
+      <div class="choices" id="nWhat">
+        <label><input type="radio" name="what" value="רילס ופוסט" checked><span>רילס ופוסט</span></label>
+        <label><input type="radio" name="what" value="רק רילס"><span>רק רילס</span></label>
+        <label><input type="radio" name="what" value="רק פוסט"><span>רק פוסט</span></label>
+      </div>
+      <label>איך לעבוד</label>
+      <div class="choices" id="nMode">
+        <label><input type="radio" name="mode" value="רגיל" checked><span>להראות לי הצעה לפני הרילס</span></label>
+        <label><input type="radio" name="mode" value="בלי אישור"><span>בלי אישור</span></label>
+        <label><input type="radio" name="mode" value="הפקה מלאה"><span>הפקה מלאה</span></label>
+      </div>
+      <label>תמונות וסרטונים</label>
+      <div class="drop" id="nDrop">לחיצה או גרירה של קבצים לכאן</div>
+      <input type="file" id="nFiles" multiple accept="image/*,video/*" class="hidden">
+      <div class="thumbs" id="nThumbs"></div>
+      <p class="progress" id="nProgress"></p>
+      <div class="row"><button id="nSend">שליחה לצוות</button><button class="ghost" id="nCancel">ביטול</button></div>
+    </div>
+  </section>
+
+  <!-- one project -->
+  <section id="viewProject" class="hidden">
+    <h2 id="pTitle"></h2>
+    <div class="status"><span class="badge" id="pStatus"></span></div>
+    <div id="pThread"></div>
+    <div class="card" id="pFilesCard">
+      <h2>קבצים להורדה</h2>
+      <div class="files" id="pFiles"></div>
+    </div>
+    <div class="card">
+      <label for="pReply" style="margin-top:0">הודעה לצוות</label>
+      <textarea id="pReply" placeholder="למשל: מאשרת / תחליף את… / עוד תמונות מצורפות"></textarea>
+      <div class="choices" style="margin-top:8px">
+        <button class="ghost" data-quick="מאשרת">מאשרת</button>
+        <button class="ghost" data-quick="נסו שוב">נסו שוב</button>
+      </div>
+      <div class="drop" id="pDrop" style="margin-top:10px;padding:12px">צירוף תמונות או סרטונים (לא חובה)</div>
+      <input type="file" id="pFilesIn" multiple accept="image/*,video/*" class="hidden">
+      <div class="thumbs" id="pThumbs"></div>
+      <p class="progress" id="pProgress"></p>
+      <button id="pSend">שליחה</button>
+    </div>
+  </section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
