@@ -159,19 +159,15 @@ async function route() {
   loadList();
 }
 
-// Hiding a project only adds a label to its issue: nothing is deleted, the team ignores labels,
-// and it stays hidden on her phone and her computer alike.
+// "Deleting" a project only removes it from the site: a label goes on its issue, and everything
+// (her notes, the conversation, the finished files) stays in the repo for the team to learn from.
+// The site offers no way back, by her choice; the team ignores labels.
 const HIDDEN = 'studio-hidden';
 const isHidden = (is) => is.labels.some((l) => (l.name || l) === HIDDEN);
-let showHidden = false;
 
-async function setHidden(num, hide) {
-  if (hide) {
-    await gh('/labels', { method: 'POST', body: { name: HIDDEN, color: 'cccccc', description: 'מוסתר באתר הסטודיו' } }).catch(() => {});
-    await gh(`/issues/${num}/labels`, { method: 'POST', body: { labels: [HIDDEN] } });
-  } else {
-    await gh(`/issues/${num}/labels/${encodeURIComponent(HIDDEN)}`, { method: 'DELETE' }).catch((e) => { if (e.status !== 404) throw e; });
-  }
+async function setHidden(num) {
+  await gh('/labels', { method: 'POST', body: { name: HIDDEN, color: 'cccccc', description: 'נמחק מאתר הסטודיו; הצוות שומר ולומד' } }).catch(() => {});
+  await gh(`/issues/${num}/labels`, { method: 'POST', body: { labels: [HIDDEN] } });
 }
 
 let toastTimer = null;
@@ -188,23 +184,20 @@ function toast(text, actionLabel, action) {
 }
 
 async function hideProject(is, row) {
+  if (!confirm(`למחוק את "${is.title}" מהאתר?\n\nאי אפשר יהיה להחזיר אותו לאתר. הצוות שומר את ההערות והתוצרים שלו וממשיך ללמוד מהם.`)) return;
   row.classList.add('leaving');
   try {
-    await setHidden(is.number, true);
-    toast(`"${is.title}" הוסתר. שום דבר לא נמחק.`, 'ביטול', async () => {
-      try { await setHidden(is.number, false); } catch (e) { toast(`לא הצלחתי להחזיר. ${friendly(e)}`); }
-      loadList();
-    });
-  } catch (e) { toast(`לא הצלחתי להסתיר. ${friendly(e)}`); }
+    await setHidden(is.number);
+    toast(`"${is.title}" נמחק מהאתר.`);
+  } catch (e) { row.classList.remove('leaving'); toast(`לא הצלחתי למחוק. ${friendly(e)}`); return; }
   loadList();
 }
 
 function projectCard(is, cls, short, highlight) {
-  const hidden = isHidden(is);
   const row = document.createElement('div'); row.className = 'projrow';
   const a = document.createElement('a');
   a.href = `#/p/${is.number}`;
-  a.className = `proj ${highlight ? 'wait' : ''} ${hidden ? 'muted' : ''}`;
+  a.className = `proj ${highlight ? 'wait' : ''}`;
   a.innerHTML = `<span class="thumb">${icon('photo')}</span><span class="body"><span class="t"></span><span class="d"></span><span class="pill ${cls}"></span></span>`;
   a.querySelector('.t').textContent = is.title;
   a.querySelector('.d').textContent = `נפתח ב-${dateFmt.format(new Date(is.created_at))}`;
@@ -212,14 +205,9 @@ function projectCard(is, cls, short, highlight) {
   const meta = projectMeta(is);
   if (meta) projectThumb(meta).then((u) => { if (u) a.querySelector('.thumb').innerHTML = `<img src="${u}" alt="">`; });
   const btn = document.createElement('button');
-  if (hidden) {
-    btn.className = 'ghost restore'; btn.textContent = 'החזרה';
-    btn.onclick = async () => { btn.disabled = true; try { await setHidden(is.number, false); } catch (e) { toast(`לא הצלחתי להחזיר. ${friendly(e)}`); } loadList(); };
-  } else {
-    btn.className = 'hide'; btn.innerHTML = icon('eyeoff');
-    btn.title = 'הסתרה מהמסך'; btn.setAttribute('aria-label', `הסתרת ${is.title} מהמסך`);
-    btn.onclick = () => hideProject(is, row);
-  }
+  btn.className = 'hide'; btn.innerHTML = icon('trash');
+  btn.title = 'מחיקה מהאתר'; btn.setAttribute('aria-label', `מחיקת ${is.title} מהאתר`);
+  btn.onclick = () => hideProject(is, row);
   row.append(a, btn);
   return row;
 }
@@ -231,13 +219,12 @@ async function loadList() {
   try {
     const [all, runs] = await Promise.all([gh(`/issues?labels=${LABEL}&state=all&per_page=100`), runsByIssue()]);
     const issues = all.filter((is) => !isHidden(is));
-    const hidden = all.filter(isHidden);
     const groups = { wait: [], work: [], done: [] };
     for (const is of issues) { const st = statusOf(runs[is.number], is); groups[st[3]].push([is, st]); }
     $('heroTitle').innerHTML = groups.wait.length ? 'יש <em>תוצרים</em> שמחכים לך' : groups.work.length ? 'הצוות <em>עובד</em> בשבילך' : 'מה <em>מפיקים</em> היום?';
     box.textContent = '';
     if (!issues.length) {
-      box.innerHTML = `<div class="card empty"><span class="ic">${icon('photo')}</span><b>${hidden.length ? 'אין פרויקטים פתוחים על המסך' : 'עוד אין פרויקטים'}</b><p class="hint" style="margin:0">מעלים תמונות של עבודה שסיימתם, והצוות מכין ממנה רילס ופוסט.</p></div>`;
+      box.innerHTML = `<div class="card empty"><span class="ic">${icon('photo')}</span><b>אין פרויקטים כרגע</b><p class="hint" style="margin:0">מעלים תמונות של עבודה שסיימתם, והצוות מכין ממנה רילס ופוסט.</p></div>`;
     }
     const titles = { wait: 'ממתינים לך', work: 'בעבודה', done: 'הסתיימו' };
     for (const g of ['wait', 'work', 'done']) {
@@ -245,15 +232,6 @@ async function loadList() {
       const sec = document.createElement('section'); sec.className = 'group';
       sec.innerHTML = `<h3>${titles[g]}</h3>`;
       for (const [is, [, cls, short]] of groups[g]) sec.appendChild(projectCard(is, cls, short, g === 'wait' && cls === 'wait'));
-      box.appendChild(sec);
-    }
-    $('hiddenToggle').classList.toggle('hidden', !hidden.length);
-    $('hiddenToggle').textContent = showHidden ? 'הסתרת הרשימה' : `פרויקטים מוסתרים (${hidden.length})`;
-    $('hiddenToggle').setAttribute('aria-expanded', String(showHidden));
-    if (showHidden && hidden.length) {
-      const sec = document.createElement('section'); sec.className = 'group'; sec.id = 'hiddenGroup';
-      sec.innerHTML = '<h3>מוסתרים</h3>';
-      for (const is of hidden) { const [, cls, short] = statusOf(runs[is.number], is); sec.appendChild(projectCard(is, cls, short, false)); }
       box.appendChild(sec);
     }
   } catch (e) { box.innerHTML = '<p class="err"></p>'; box.firstChild.textContent = `לא הצלחתי לטעון את הפרויקטים. ${friendly(e)}`; }
@@ -551,7 +529,6 @@ $('navHome').onclick = () => { location.hash = '#/'; };
 $('navNew').onclick = () => { location.hash = '#/new'; };
 $('nCancel').onclick = () => { location.hash = '#/'; };
 $('nSend').onclick = createProject;
-$('hiddenToggle').onclick = () => { showHidden = !showHidden; loadList(); };
 $('logout').onclick = () => {
   if (!confirm('להתנתק? כדי לחזור יהיה צריך להדביק שוב את מפתח הגישה.')) return;
   store.set(''); token = ''; route();
