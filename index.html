@@ -11,12 +11,12 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
 <style>
 :root {
-  --bg: #f3ede4; --card: #fffaf3; --ink: #1c1816; --muted: #8f8476; --line: #ddd4c7;
-  --brown: #7a5a43; --brown-ink: #fffaf3; --gold: #d8b878; --mine: #efe6da; --ok: #4f7a4a; --bad: #a4483a;
+  --bg: #f3ede4; --card: #fffaf3; --ink: #1c1816; --muted: #6b6053; --line: #ddd4c7; --field: #8f8476;
+  --brown: #7a5a43; --brown-ink: #fffaf3; --gold: #d8b878; --mine: #efe6da; --ok: #3f6a3b; --bad: #a4483a;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #1c1816; --card: #26211d; --ink: #f3ede4; --muted: #a89c8d; --line: #3d352e;
+    --bg: #1c1816; --card: #26211d; --ink: #f3ede4; --muted: #a89c8d; --line: #3d352e; --field: #7d705f;
     --brown: #b08463; --brown-ink: #1c1816; --gold: #d8b878; --mine: #332b24; --ok: #8fbf88; --bad: #e08a7c;
   }
 }
@@ -28,25 +28,34 @@ header h1 { font-size: 18px; font-weight: 600; margin: 0; flex: 1; }
 main { max-width: 760px; margin: 0 auto; padding: 20px 16px 24px; }
 h2 { font-size: 20px; font-weight: 600; margin: 0 0 14px; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 16px; }
-label { display: block; font-weight: 500; margin: 14px 0 6px; }
+label, .label { display: block; font-weight: 500; margin: 14px 0 6px; }
 .hint { color: var(--muted); font-size: 14px; }
-input[type=text], input[type=password], textarea, select { width: 100%; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+input[type=text], input[type=password], textarea, select { width: 100%; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--field); border-radius: 10px; padding: 10px 12px; }
 textarea { min-height: 120px; resize: vertical; }
-button, .btn { font: inherit; font-weight: 500; border: 0; border-radius: 10px; padding: 10px 18px; background: var(--brown); color: var(--brown-ink); cursor: pointer; text-decoration: none; display: inline-block; }
+button, .btn { font: inherit; font-weight: 500; border: 0; border-radius: 10px; padding: 10px 18px; min-height: 44px; background: var(--brown); color: var(--brown-ink); cursor: pointer; text-decoration: none; display: inline-block; touch-action: manipulation; transition: filter .15s, background-color .15s; }
+button:hover:not(:disabled), .btn:hover { filter: brightness(1.08); }
+button.ghost:hover:not(:disabled) { background: var(--mine); filter: none; }
+/* a visible focus ring for keyboard users only (WCAG 2.4.7) */
+:focus-visible { outline: 2px solid var(--brown); outline-offset: 2px; }
+input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offset: 0; border-color: var(--brown); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
 button.ghost, .btn.ghost { background: transparent; color: var(--brown); border: 1px solid var(--line); }
 button:disabled { opacity: .5; cursor: default; }
 .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .choices { display: flex; gap: 8px; flex-wrap: wrap; }
-.choices label { margin: 0; font-weight: 400; border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; cursor: pointer; }
-.choices input { display: none; }
+.choices label { margin: 0; font-weight: 400; border: 1px solid var(--field); border-radius: 999px; padding: 9px 16px; min-height: 44px; display: flex; align-items: center; position: relative; cursor: pointer; }
+/* hidden from sight but still reachable with the keyboard and screen readers */
+.choices input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.choices label:has(input:focus-visible) { outline: 2px solid var(--brown); outline-offset: 2px; }
 .choices input:checked + span { font-weight: 600; }
 .choices label:has(input:checked) { border-color: var(--brown); background: var(--mine); }
-.drop { border: 2px dashed var(--line); border-radius: 12px; padding: 22px; text-align: center; color: var(--muted); cursor: pointer; }
+.drop { display: block; width: 100%; font: inherit; background: transparent; border: 2px dashed var(--field); border-radius: 12px; padding: 22px; text-align: center; color: var(--muted); cursor: pointer; }
+.drop:hover:not(:disabled) { background: var(--mine); filter: none; }
 .drop.over { border-color: var(--brown); }
 .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; margin-top: 10px; }
 .thumbs div { position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: var(--mine); font-size: 12px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 4px; }
 .thumbs img, .thumbs video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.thumbs button { position: absolute; top: 4px; left: 4px; padding: 0 7px; font-size: 14px; border-radius: 6px; z-index: 1; }
+.thumbs button { position: absolute; top: 4px; left: 4px; min-height: 0; width: 30px; height: 30px; padding: 0; font-size: 18px; line-height: 1; border-radius: 8px; background: var(--card); z-index: 1; }
 .list a { display: flex; justify-content: space-between; gap: 10px; padding: 14px 4px; border-bottom: 1px solid var(--line); color: var(--ink); text-decoration: none; }
 .list a:last-child { border-bottom: 0; }
 .badge { font-size: 13px; border-radius: 999px; padding: 2px 10px; background: var(--mine); color: var(--muted); white-space: nowrap; }
@@ -83,7 +92,7 @@ button:disabled { opacity: .5; cursor: default; }
 .composer .thumbs { margin: 0 0 8px; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
 .composer .progress { margin: 0 0 6px; min-height: 0; }
 .quick { display: flex; gap: 8px; margin-bottom: 8px; }
-.quick button { padding: 4px 12px; font-size: 14px; }
+.quick button { padding: 6px 14px; font-size: 15px; }
 .crow { display: flex; gap: 8px; align-items: flex-end; }
 .crow textarea { min-height: 44px; height: 44px; flex: 1; min-width: 0; resize: none; }
 .crow button { height: 44px; }
@@ -106,7 +115,7 @@ button:disabled { opacity: .5; cursor: default; }
       <p class="hint">פעם אחת בלבד: מדביקים כאן את מפתח הגישה ל-GitHub (ההוראות ב-docs/studio-site.md). הוא נשמר רק בדפדפן הזה.</p>
       <label for="tokenIn">מפתח גישה</label>
       <input type="password" id="tokenIn" autocomplete="off" dir="ltr" placeholder="github_pat_...">
-      <p class="progress err" id="setupErr"></p>
+      <p class="progress err" id="setupErr" role="status" aria-live="polite"></p>
       <button id="tokenSave">התחברות</button>
     </div>
   </section>
@@ -129,23 +138,23 @@ button:disabled { opacity: .5; cursor: default; }
       <input type="text" id="nTitle" placeholder="למשל: מטבח שמנת בהרצליה">
       <label for="nBrief">מה רוצים שיידעו (הבריף)</label>
       <textarea id="nBrief" placeholder="מה עשינו, חומרים, מה מיוחד, מה חשוב להראות…"></textarea>
-      <label>מה להפיק</label>
-      <div class="choices" id="nWhat">
+      <p class="label" id="nWhatL">מה להפיק</p>
+      <div class="choices" id="nWhat" role="radiogroup" aria-labelledby="nWhatL">
         <label><input type="radio" name="what" value="רילס ופוסט" checked><span>רילס ופוסט</span></label>
         <label><input type="radio" name="what" value="רק רילס"><span>רק רילס</span></label>
         <label><input type="radio" name="what" value="רק פוסט"><span>רק פוסט</span></label>
       </div>
-      <label>איך לעבוד</label>
-      <div class="choices" id="nMode">
+      <p class="label" id="nModeL">איך לעבוד</p>
+      <div class="choices" id="nMode" role="radiogroup" aria-labelledby="nModeL">
         <label><input type="radio" name="mode" value="רגיל" checked><span>להראות לי הצעה לפני הרילס</span></label>
         <label><input type="radio" name="mode" value="בלי אישור"><span>בלי אישור</span></label>
         <label><input type="radio" name="mode" value="הפקה מלאה"><span>הפקה מלאה</span></label>
       </div>
-      <label>תמונות וסרטונים</label>
-      <div class="drop" id="nDrop">לחיצה או גרירה של קבצים לכאן</div>
+      <p class="label">תמונות וסרטונים</p>
+      <button type="button" class="drop" id="nDrop">לחיצה כאן לבחירת תמונות וסרטונים, או גרירה שלהם לכאן</button>
       <input type="file" id="nFiles" multiple accept="image/*,video/*" class="hidden">
       <div class="thumbs" id="nThumbs"></div>
-      <p class="progress" id="nProgress"></p>
+      <p class="progress" id="nProgress" role="status" aria-live="polite"></p>
       <div class="row"><button id="nSend">שליחה לצוות</button><button class="ghost" id="nCancel">ביטול</button></div>
     </div>
   </section>
@@ -167,7 +176,7 @@ button:disabled { opacity: .5; cursor: default; }
     <button class="newmsg hidden" id="pNew">הודעה חדשה ↓</button>
     <div class="composer">
       <div class="thumbs" id="pThumbs"></div>
-      <p class="progress" id="pProgress"></p>
+      <p class="progress" id="pProgress" role="status" aria-live="polite"></p>
       <div class="quick">
         <button class="ghost" data-quick="מאשרת">מאשרת</button>
         <button class="ghost" data-quick="נסו שוב">נסו שוב</button>
