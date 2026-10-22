@@ -6,107 +6,208 @@
 <title>סטודיו אבן ועץ</title>
 <link rel="icon" href="logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Hebrew:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Hebrew:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
 <style>
+/* Brand tokens come from her logo: charcoal letters (#3f4044) and gold (#d5a759) on warm cream. */
 :root {
-  --bg: #f3ede4; --card: #fffaf3; --ink: #1c1816; --muted: #6b6053; --line: #ddd4c7; --field: #8f8476;
-  --brown: #7a5a43; --brown-ink: #fffaf3; --gold: #d8b878; --mine: #efe6da; --ok: #3f6a3b; --bad: #a4483a;
+  --bg: #f4efe8; --paper: #fffcf7; --sand: #ebe2d5; --ink: #1d1c1b; --muted: #685f55; --line: #e2d9cc; --field: #8f8476;
+  --char: #2c2d30; --char-2: #3f4044; --on-char: #f4efe8; --on-char-muted: #b9b1a6;
+  --gold: #d5a759; --gold-ink: #7d5e22; --ok: #3f6a3b; --bad: #a4483a; --wait: #2c2d30;
+  --shadow: 0 1px 2px rgba(44,45,48,.06), 0 6px 20px rgba(44,45,48,.07);
+  --r: 16px;
+  /* aliases the message styles below still use */
+  --card: var(--paper); --mine: var(--sand); --brown: var(--char);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #1c1816; --card: #26211d; --ink: #f3ede4; --muted: #a89c8d; --line: #3d352e; --field: #7d705f;
-    --brown: #b08463; --brown-ink: #1c1816; --gold: #d8b878; --mine: #332b24; --ok: #8fbf88; --bad: #e08a7c;
+    --bg: #171716; --paper: #222220; --sand: #2e2c29; --ink: #f1ece4; --muted: #ada498; --line: #34322e; --field: #7d705f;
+    --char: #0f0f0f; --char-2: #262626; --on-char: #f1ece4; --on-char-muted: #a39b90;
+    --gold-ink: #e2bd7a; --ok: #8fbf88; --bad: #e08a7c; --wait: #f1ece4;
+    --shadow: 0 1px 2px rgba(0,0,0,.4);
+    --brown: var(--gold);
   }
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 "IBM Plex Sans Hebrew", system-ui, sans-serif; direction: rtl; }
-header { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); background: var(--card); position: sticky; top: 0; z-index: 2; }
-header img { height: 44px; }
-header h1 { font-size: 18px; font-weight: 600; margin: 0; flex: 1; }
-main { max-width: 760px; margin: 0 auto; padding: 20px 16px 24px; }
-h2 { font-size: 20px; font-weight: 600; margin: 0 0 14px; }
-.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 16px; }
-label, .label { display: block; font-weight: 500; margin: 14px 0 6px; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 "IBM Plex Sans Hebrew", system-ui, sans-serif; direction: rtl; -webkit-font-smoothing: antialiased; }
+svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---------- app bar ---------- */
+header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; padding-top: calc(10px + env(safe-area-inset-top, 0px)); background: var(--char); color: var(--on-char); position: sticky; top: 0; z-index: 3; }
+header img { height: 40px; width: auto; }
+header h1 { font-size: 16px; font-weight: 500; margin: 0; flex: 1; color: var(--on-char-muted); letter-spacing: .01em; }
+header .back { background: transparent; color: var(--on-char); border: 1px solid rgba(244,239,232,.25); display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; }
+header .back:hover:not(:disabled) { background: rgba(244,239,232,.08); filter: none; }
+
+/* ---------- hero on the projects list ---------- */
+.hero { background: var(--char); color: var(--on-char); padding: 14px 16px 26px; position: relative; overflow: hidden; }
+.hero::after { content: ""; position: absolute; inset: auto 0 0 0; height: 4px; background: var(--gold); }
+.hero .wrap { max-width: 760px; margin: 0 auto; position: relative; }
+.hero .hello { color: var(--on-char-muted); font-size: 15px; margin: 0; }
+.hero h2 { font-size: 30px; line-height: 1.2; font-weight: 700; margin: 4px 0 20px; color: var(--on-char); }
+.hero h2 em { font-style: normal; color: var(--gold); }
+.hero .cta { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--gold); color: #241d12; font-weight: 700; font-size: 17px; min-height: 52px; border-radius: 14px; }
+.hero .grain { position: absolute; left: -70px; top: -60px; width: 200px; height: 200px; opacity: .05; pointer-events: none; }
+
+main { max-width: 760px; margin: 0 auto; padding: 22px 16px 28px; }
+h2 { font-size: 20px; font-weight: 700; margin: 0 0 14px; }
+.card { background: var(--paper); border: 1px solid var(--line); border-radius: var(--r); padding: 20px; margin-bottom: 16px; box-shadow: var(--shadow); }
+label, .label { display: block; font-weight: 500; margin: 16px 0 6px; }
 .hint { color: var(--muted); font-size: 14px; }
-input[type=text], input[type=password], textarea, select { width: 100%; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--field); border-radius: 10px; padding: 10px 12px; }
+input[type=text], input[type=password], textarea, select { width: 100%; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--field); border-radius: 12px; padding: 11px 14px; }
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: .85; }
 textarea { min-height: 120px; resize: vertical; }
-button, .btn { font: inherit; font-weight: 500; border: 0; border-radius: 10px; padding: 10px 18px; min-height: 44px; background: var(--brown); color: var(--brown-ink); cursor: pointer; text-decoration: none; display: inline-block; touch-action: manipulation; transition: filter .15s, background-color .15s; }
-button:hover:not(:disabled), .btn:hover { filter: brightness(1.08); }
-button.ghost:hover:not(:disabled) { background: var(--mine); filter: none; }
-/* a visible focus ring for keyboard users only (WCAG 2.4.7) */
-:focus-visible { outline: 2px solid var(--brown); outline-offset: 2px; }
-input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offset: 0; border-color: var(--brown); }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
-button.ghost, .btn.ghost { background: transparent; color: var(--brown); border: 1px solid var(--line); }
+button, .btn { font: inherit; font-weight: 500; border: 0; border-radius: 12px; padding: 10px 18px; min-height: 44px; background: var(--char); color: var(--on-char); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; touch-action: manipulation; transition: filter .15s, background-color .15s, transform .1s; }
+button:active:not(:disabled) { transform: scale(.98); }
+button:hover:not(:disabled), .btn:hover { filter: brightness(1.15); }
+button.ghost, .btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--field); }
+button.ghost:hover:not(:disabled) { background: var(--sand); filter: none; }
 button:disabled { opacity: .5; cursor: default; }
+:focus-visible { outline: 2px solid var(--gold-ink); outline-offset: 2px; }
+header :focus-visible, .hero :focus-visible { outline-color: var(--gold); }
+input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offset: 0; border-color: var(--gold-ink); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
 .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-.choices { display: flex; gap: 8px; flex-wrap: wrap; }
-.choices label { margin: 0; font-weight: 400; border: 1px solid var(--field); border-radius: 999px; padding: 9px 16px; min-height: 44px; display: flex; align-items: center; position: relative; cursor: pointer; }
+
+/* ---------- status pill ---------- */
+.pill { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 500; line-height: 1.3; border-radius: 999px; padding: 4px 11px 4px 12px; background: var(--sand); color: var(--muted); white-space: nowrap; }
+.pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; }
+.pill.work { color: var(--gold-ink); }
+.pill.work::before { background: var(--gold); box-shadow: 0 0 0 0 rgba(213,167,89,.6); animation: pulse 1.8s ease-out infinite; }
+.pill.wait { background: var(--char); color: var(--on-char); }
+.pill.wait::before { background: var(--gold); }
+.pill.ok { color: var(--ok); }
+.pill.bad { color: var(--bad); }
+@keyframes pulse { 70% { box-shadow: 0 0 0 7px rgba(213,167,89,0); } 100% { box-shadow: 0 0 0 0 rgba(213,167,89,0); } }
+/* legacy name still used by the project view */
+.badge { font-size: 13px; border-radius: 999px; padding: 2px 10px; background: var(--sand); color: var(--muted); }
+
+/* ---------- projects list ---------- */
+.group { margin: 4px 0 22px; }
+.group h3 { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: var(--muted); margin: 0 0 10px; letter-spacing: .02em; }
+.proj { display: flex; align-items: center; gap: 14px; padding: 10px; padding-inline-end: 14px; margin-bottom: 10px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); color: var(--ink); text-decoration: none; transition: transform .15s, box-shadow .15s; }
+.proj:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(44,45,48,.06), 0 10px 26px rgba(44,45,48,.1); }
+.proj .thumb { width: 76px; height: 76px; flex: none; border-radius: 12px; background: var(--sand); overflow: hidden; display: flex; align-items: center; justify-content: center; color: var(--field); }
+.proj .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.proj .body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.proj .t { font-weight: 700; font-size: 17px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.proj .d { font-size: 13px; color: var(--muted); }
+.proj .chev { color: var(--field); }
+.proj.wait { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold), var(--shadow); }
+.empty { text-align: center; padding: 34px 20px; }
+.empty .ic { width: 56px; height: 56px; border-radius: 16px; background: var(--sand); color: var(--gold-ink); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+.empty .ic svg { width: 28px; height: 28px; }
+.empty b { display: block; font-size: 18px; margin-bottom: 4px; }
+.skel { height: 98px; border-radius: var(--r); background: linear-gradient(90deg, var(--sand), var(--paper), var(--sand)); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; margin-bottom: 10px; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+.foot { text-align: center; margin-top: 26px; }
+.link { background: none; border: 0; color: var(--muted); font-size: 14px; text-decoration: underline; text-underline-offset: 3px; min-height: 44px; padding: 0 10px; }
+.link:hover:not(:disabled) { color: var(--ink); filter: none; }
+
+/* ---------- new project form ---------- */
+.formhead { margin: 0 0 6px; font-size: 26px; font-weight: 700; }
+.formsub { color: var(--muted); margin: 0 0 18px; }
+.step { display: flex; gap: 12px; align-items: baseline; margin: 22px 0 8px; }
+.step:first-child { margin-top: 0; }
+.step .num { width: 26px; height: 26px; flex: none; border-radius: 50%; background: var(--char); color: var(--gold); font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; transform: translateY(-1px); }
+.step .label { margin: 0; font-weight: 700; font-size: 17px; }
+.choices { display: grid; grid-template-columns: 1fr; gap: 8px; }
+#nWhat { grid-template-columns: repeat(3, 1fr); }
+#nWhat label { padding: 8px 6px; justify-content: center; text-align: center; font-size: 15px; white-space: nowrap; }
+#nWhat label::before { display: none; }
+#nWhat label:has(input:checked) { background: var(--char); color: var(--on-char); }
+.choices label { margin: 0; font-weight: 500; border: 1px solid var(--field); border-radius: 12px; padding: 10px 14px; min-height: 48px; display: flex; align-items: center; gap: 10px; position: relative; cursor: pointer; background: var(--bg); transition: border-color .15s, background-color .15s; }
+.choices label::before { content: ""; width: 18px; height: 18px; flex: none; border-radius: 50%; border: 2px solid var(--field); background: var(--paper); }
+.choices label:has(input:checked) { border-color: var(--char); background: var(--paper); box-shadow: 0 0 0 1px var(--char); }
+.choices label:has(input:checked)::before { border: 5px solid var(--char); }
+.choices small { display: block; font-weight: 400; color: var(--muted); font-size: 13px; line-height: 1.35; }
 /* hidden from sight but still reachable with the keyboard and screen readers */
 .choices input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-.choices label:has(input:focus-visible) { outline: 2px solid var(--brown); outline-offset: 2px; }
-.choices input:checked + span { font-weight: 600; }
-.choices label:has(input:checked) { border-color: var(--brown); background: var(--mine); }
-.drop { display: block; width: 100%; font: inherit; background: transparent; border: 2px dashed var(--field); border-radius: 12px; padding: 22px; text-align: center; color: var(--muted); cursor: pointer; }
-.drop:hover:not(:disabled) { background: var(--mine); filter: none; }
-.drop.over { border-color: var(--brown); }
+.choices label:has(input:focus-visible) { outline: 2px solid var(--gold-ink); outline-offset: 2px; }
+.drop { width: 100%; font: inherit; background: var(--bg); border: 2px dashed var(--field); border-radius: 14px; padding: 26px 18px; text-align: center; color: var(--muted); cursor: pointer; flex-direction: column; gap: 6px; min-height: 120px; }
+.drop svg { width: 30px; height: 30px; color: var(--gold-ink); }
+.drop b { color: var(--ink); font-weight: 500; }
+.drop:hover:not(:disabled), .drop.over { background: var(--sand); border-color: var(--gold-ink); filter: none; }
 .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; margin-top: 10px; }
-.thumbs div { position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: var(--mine); font-size: 12px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 4px; }
+.thumbs:empty { display: none; }
+.thumbs div { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: var(--sand); font-size: 12px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 4px; }
 .thumbs img, .thumbs video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.thumbs button { position: absolute; top: 4px; left: 4px; min-height: 0; width: 30px; height: 30px; padding: 0; font-size: 18px; line-height: 1; border-radius: 8px; background: var(--card); z-index: 1; }
-.list a { display: flex; justify-content: space-between; gap: 10px; padding: 14px 4px; border-bottom: 1px solid var(--line); color: var(--ink); text-decoration: none; }
-.list a:last-child { border-bottom: 0; }
-.badge { font-size: 13px; border-radius: 999px; padding: 2px 10px; background: var(--mine); color: var(--muted); white-space: nowrap; }
-.badge.work { color: var(--brown); }
-.badge.bad { color: var(--bad); }
-.badge.ok { color: var(--ok); }
-.msg { border-radius: 14px; padding: 12px 14px; margin: 10px 0; max-width: 92%; overflow-wrap: anywhere; }
-.msg.team { background: var(--card); border: 1px solid var(--line); margin-left: auto; }
-.msg.me { background: var(--mine); margin-right: auto; }
-.msg.sys { background: transparent; color: var(--muted); font-size: 14px; padding: 4px 14px; margin: 4px auto 4px 0; }
-.msg.note { background: var(--card); border: 1px dashed var(--brown); margin: 10px 0; max-width: 100%; font-size: 15px; }
-.msg.note ul { margin: 0; padding: 0 18px 0 0; }
-.msg .who { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
-.msg img, .msg video { max-width: 100%; border-radius: 8px; }
-.msg p { margin: 0 0 8px; } .msg p:last-child { margin: 0; }
+.thumbs button { position: absolute; top: 4px; left: 4px; min-height: 0; width: 30px; height: 30px; padding: 0; font-size: 18px; line-height: 1; border-radius: 8px; background: rgba(44,45,48,.75); color: #fff; border: 0; z-index: 1; }
+.actions { display: flex; gap: 10px; margin-top: 18px; }
+.actions .primary { flex: 1; min-height: 52px; font-size: 17px; font-weight: 700; }
+
+/* ---------- one project ---------- */
+.ptop { position: sticky; top: 60px; z-index: 2; background: var(--bg); padding: 12px 0 10px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+.ptop h2 { font-size: 22px; line-height: 1.3; }
+.ptop .pill { white-space: normal; }
+.ptop .meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+.filesbar { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.filesbar button { padding: 8px 14px; font-size: 15px; }
+.filespanel { margin-top: 10px; max-height: 55vh; overflow-y: auto; }
 .files { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
-.file { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; }
+.file { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
 .file img, .file video, .file .play { width: 100%; aspect-ratio: 4/5; object-fit: cover; background: #000; }
 .file .play { margin: 0; border: 0; border-radius: 0; color: #fff; font-size: 18px; display: flex; align-items: center; justify-content: center; }
 .file .name { font-size: 13px; padding: 6px 8px; color: var(--muted); overflow-wrap: anywhere; flex: 1; }
 .file button { margin: 0 8px 8px; padding: 6px; font-size: 14px; }
+.msg { border-radius: 18px; padding: 12px 14px; margin: 10px 0; max-width: 88%; overflow-wrap: anywhere; }
+.msg.team { background: var(--paper); border: 1px solid var(--line); margin-left: auto; border-top-right-radius: 6px; box-shadow: var(--shadow); }
+.msg.me { background: var(--sand); margin-right: auto; border-top-left-radius: 6px; }
+.msg.sys { background: transparent; color: var(--muted); font-size: 14px; padding: 4px 14px; margin: 4px auto 4px 0; }
+.msg.note { background: var(--paper); border: 1px solid var(--gold); border-inline-start: 4px solid var(--gold); margin: 12px 0; max-width: 100%; font-size: 15px; }
+.msg.note ul { margin: 0; padding: 0 18px 0 0; }
+.msg .who { font-size: 12px; font-weight: 700; color: var(--gold-ink); margin-bottom: 4px; letter-spacing: .02em; }
+.msg.me .who { color: var(--muted); }
+.msg img, .msg video { max-width: 100%; border-radius: 10px; }
+.msg p { margin: 0 0 8px; } .msg p:last-child { margin: 0; }
+.msg a { color: var(--gold-ink); }
 .status { margin: 0 0 12px; }
-.status .badge { white-space: normal; display: inline-block; }
 .progress { color: var(--muted); font-size: 14px; margin-top: 10px; min-height: 1.4em; }
 .err { color: var(--bad); }
-/* project view: messaging layout. Title, status and ready files stay on top; the composer sticks to the bottom. */
-.ptop { position: sticky; top: 73px; z-index: 1; background: var(--bg); padding: 10px 0 8px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
-.ptop .badge { white-space: normal; }
-.filesbar { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-.filesbar button { padding: 8px 14px; font-size: 15px; }
-.filespanel { margin-top: 10px; max-height: 55vh; overflow-y: auto; }
 #viewProject { padding-bottom: 8px; }
 .composer { position: sticky; bottom: 0; background: var(--bg); border-top: 1px solid var(--line); padding: 10px 0 calc(10px + env(safe-area-inset-bottom, 0px)); margin-top: 12px; }
 .composer .thumbs { margin: 0 0 8px; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
 .composer .progress { margin: 0 0 6px; min-height: 0; }
 .quick { display: flex; gap: 8px; margin-bottom: 8px; }
-.quick button { padding: 6px 14px; font-size: 15px; }
-.crow { display: flex; gap: 8px; align-items: flex-end; }
-.crow textarea { min-height: 44px; height: 44px; flex: 1; min-width: 0; resize: none; }
-.crow button { height: 44px; }
-.attach { padding: 0 12px; font-size: 18px; }
-.newmsg { position: fixed; bottom: 150px; left: 50%; transform: translateX(-50%); z-index: 3; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+.quick button { padding: 6px 16px; font-size: 15px; border-radius: 999px; }
+.crow { display: flex; gap: 8px; align-items: flex-end; background: var(--paper); border: 1px solid var(--field); border-radius: 24px; padding: 4px; }
+.crow:focus-within { border-color: var(--gold-ink); }
+.crow textarea { min-height: 44px; height: 44px; flex: 1; min-width: 0; resize: none; border: 0; background: transparent; padding: 10px 6px; }
+.crow textarea:focus-visible { outline: none; }
+.crow button { height: 44px; width: 44px; padding: 0; border-radius: 50%; }
+.crow .attach { background: transparent; color: var(--muted); border: 0; }
+.newmsg { position: fixed; bottom: 150px; left: 50%; transform: translateX(-50%); z-index: 3; box-shadow: 0 2px 8px rgba(0,0,0,.2); border-radius: 999px; }
 .hidden { display: none !important; }
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24"><path d="M21 11.5l-8.6 8.6a5 5 0 0 1-7.1-7.1l8.6-8.6a3.3 3.3 0 0 1 4.7 4.7l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M20 12H5M11 5l-7 7 7 7"/></symbol>
+  <symbol id="i-photo" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></symbol>
+</svg>
 <header>
-  <img src="logo.png" alt="אבן ועץ">
+  <img src="logo-light.png" alt="אבן ועץ" width="29" height="40">
   <h1>סטודיו השיווק</h1>
-  <button class="ghost hidden" id="navHome">כל הפרויקטים</button>
+  <button class="back hidden" id="navHome"><svg class="i"><use href="#i-back"/></svg>כל הפרויקטים</button>
 </header>
+
+<!-- projects list: the hero continues the dark app bar -->
+<section class="hero hidden" id="heroList">
+  <svg class="grain" viewBox="0 0 200 200" aria-hidden="true"><g fill="none" stroke="#d5a759" stroke-width="2"><path d="M10 40c40-20 80 20 120 0s60 10 70 0"/><path d="M0 70c40-20 80 20 120 0s70 10 80 0"/><path d="M10 100c40-20 80 20 120 0s60 10 70 0"/><path d="M0 130c40-20 80 20 120 0s70 10 80 0"/><path d="M10 160c40-20 80 20 120 0s60 10 70 0"/><ellipse cx="120" cy="100" rx="22" ry="9"/></g></svg>
+  <div class="wrap">
+    <p class="hello" id="hello">שלום</p>
+    <h2 id="heroTitle" aria-live="polite">מה <em>מפיקים</em> היום?</h2>
+    <button class="cta" id="navNew"><svg class="i"><use href="#i-plus"/></svg>פרויקט חדש</button>
+  </div>
+</section>
+
 <main>
   <!-- one-time connection -->
   <section id="viewSetup" class="hidden">
@@ -122,50 +223,49 @@ button:disabled { opacity: .5; cursor: default; }
 
   <!-- projects list -->
   <section id="viewList" class="hidden">
-    <div class="row" style="justify-content: space-between; margin-bottom: 14px;">
-      <h2 style="margin:0">הפרויקטים שלי</h2>
-      <button id="navNew">+ פרויקט חדש</button>
-    </div>
-    <div class="card list" id="projList"><span class="hint">טוען…</span></div>
-    <button class="ghost" id="logout" style="font-size:14px">התנתקות מהדפדפן הזה</button>
+    <div id="projList"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+    <div class="foot"><button class="link" id="logout">התנתקות מהדפדפן הזה</button></div>
   </section>
 
   <!-- new project -->
   <section id="viewNew" class="hidden">
+    <h2 class="formhead">פרויקט חדש</h2>
+    <p class="formsub">שלושה צעדים קצרים, והצוות מתחיל לעבוד.</p>
     <div class="card">
-      <h2>פרויקט חדש</h2>
+      <div class="step"><span class="num">1</span><p class="label">על מה העבודה</p></div>
       <label for="nTitle">שם הפרויקט</label>
       <input type="text" id="nTitle" placeholder="למשל: מטבח שמנת בהרצליה">
-      <label for="nBrief">מה רוצים שיידעו (הבריף)</label>
+      <label for="nBrief">מה חשוב שיידעו (הבריף)</label>
       <textarea id="nBrief" placeholder="מה עשינו, חומרים, מה מיוחד, מה חשוב להראות…"></textarea>
-      <p class="label" id="nWhatL">מה להפיק</p>
+
+      <div class="step"><span class="num">2</span><p class="label">תמונות וסרטונים</p></div>
+      <button type="button" class="drop" id="nDrop"><svg class="i"><use href="#i-upload"/></svg><b>בחירת תמונות וסרטונים</b><span>או גרירה שלהם לכאן</span></button>
+      <input type="file" id="nFiles" multiple accept="image/*,video/*" class="hidden">
+      <div class="thumbs" id="nThumbs"></div>
+
+      <div class="step"><span class="num">3</span><p class="label">מה להפיק ואיך</p></div>
+      <p class="label" id="nWhatL" style="font-weight:500;font-size:15px;margin-top:4px">מה להפיק</p>
       <div class="choices" id="nWhat" role="radiogroup" aria-labelledby="nWhatL">
         <label><input type="radio" name="what" value="רילס ופוסט" checked><span>רילס ופוסט</span></label>
         <label><input type="radio" name="what" value="רק רילס"><span>רק רילס</span></label>
         <label><input type="radio" name="what" value="רק פוסט"><span>רק פוסט</span></label>
       </div>
-      <p class="label" id="nModeL">איך לעבוד</p>
+      <p class="label" id="nModeL" style="font-weight:500;font-size:15px">איך לעבוד</p>
       <div class="choices" id="nMode" role="radiogroup" aria-labelledby="nModeL">
-        <label><input type="radio" name="mode" value="רגיל" checked><span>להראות לי הצעה לפני הרילס</span></label>
-        <label><input type="radio" name="mode" value="בלי אישור"><span>בלי אישור</span></label>
-        <label><input type="radio" name="mode" value="הפקה מלאה"><span>הפקה מלאה</span></label>
+        <label><input type="radio" name="mode" value="רגיל" checked><span>הצעה קודם<small>מראים לי רעיון לרילס לפני</small></span></label>
+        <label><input type="radio" name="mode" value="בלי אישור"><span>בלי אישור<small>הצוות מחליט ומפיק</small></span></label>
+        <label><input type="radio" name="mode" value="הפקה מלאה"><span>הפקה מלאה<small>שתי בדיקות איכות</small></span></label>
       </div>
-      <p class="label">תמונות וסרטונים</p>
-      <button type="button" class="drop" id="nDrop">לחיצה כאן לבחירת תמונות וסרטונים, או גרירה שלהם לכאן</button>
-      <input type="file" id="nFiles" multiple accept="image/*,video/*" class="hidden">
-      <div class="thumbs" id="nThumbs"></div>
       <p class="progress" id="nProgress" role="status" aria-live="polite"></p>
-      <div class="row"><button id="nSend">שליחה לצוות</button><button class="ghost" id="nCancel">ביטול</button></div>
+      <div class="actions"><button class="primary" id="nSend">שליחה לצוות</button><button class="ghost" id="nCancel">ביטול</button></div>
     </div>
   </section>
 
   <!-- one project -->
   <section id="viewProject" class="hidden">
     <div class="ptop">
-      <div class="row" style="justify-content: space-between;">
-        <h2 id="pTitle" style="margin:0"></h2>
-        <span class="badge" id="pStatus"></span>
-      </div>
+      <h2 id="pTitle" style="margin:0"></h2>
+      <div class="meta"><span class="pill" id="pStatus"></span><span class="hint" id="pDate"></span></div>
       <div class="filesbar hidden" id="pFilesCard">
         <button class="ghost" id="pFilesToggle" aria-expanded="false" aria-controls="pFilesPanel">קבצים מוכנים (<span id="pFilesCount">0</span>) ▾</button>
         <button id="pZip">הורדת הכול</button>
@@ -182,9 +282,9 @@ button:disabled { opacity: .5; cursor: default; }
         <button class="ghost" data-quick="נסו שוב">נסו שוב</button>
       </div>
       <div class="crow">
-        <button class="ghost attach" id="pDrop" title="צירוף תמונות או סרטונים" aria-label="צירוף תמונות או סרטונים">📎</button>
+        <button class="attach" id="pDrop" title="צירוף תמונות או סרטונים" aria-label="צירוף תמונות או סרטונים"><svg class="i"><use href="#i-clip"/></svg></button>
         <textarea id="pReply" rows="1" aria-label="הודעה לצוות" placeholder="הודעה לצוות…"></textarea>
-        <button id="pSend">שליחה</button>
+        <button id="pSend" aria-label="שליחה" title="שליחה"><svg class="i"><use href="#i-send"/></svg></button>
       </div>
       <input type="file" id="pFilesIn" multiple accept="image/*,video/*" class="hidden">
     </div>
