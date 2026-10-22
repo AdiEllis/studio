@@ -30,6 +30,19 @@ async function gh(path, opts = {}) {
   return data;
 }
 
+// Errors in her words: what happened and what to do, not GitHub's English message.
+function friendly(e) {
+  if (!navigator.onLine || e instanceof TypeError) return 'אין חיבור לאינטרנט כרגע. כדאי לבדוק את החיבור ולנסות שוב.';
+  if (e.status === 401) return 'מפתח הגישה כבר לא עובד. צריך להתנתק ולהדביק מפתח חדש.';
+  if (e.status === 403 || e.status === 429) return 'GitHub ביקש לחכות רגע. כדאי לנסות שוב בעוד דקה.';
+  if (e.status >= 500) return 'ל-GitHub יש תקלה זמנית. כדאי לנסות שוב בעוד כמה דקות.';
+  return e.message;
+}
+
+// While files upload, leaving the page would lose them, so the browser asks first.
+let busy = false;
+window.addEventListener('beforeunload', (e) => { if (busy) { e.preventDefault(); e.returnValue = ''; } });
+
 function readBase64(file) {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -138,7 +151,7 @@ async function loadList() {
       a.firstChild.textContent = is.title;
       box.appendChild(a);
     }
-  } catch (e) { box.innerHTML = `<span class="err">לא הצלחתי לטעון (${e.message}).</span>`; }
+  } catch (e) { box.innerHTML = '<span class="err"></span>'; box.firstChild.textContent = `לא הצלחתי לטעון את הפרויקטים. ${friendly(e)}`; }
 }
 
 async function openProject(num) {
@@ -191,7 +204,7 @@ async function openProject(num) {
       }
       if (meta) await renderFiles(meta);
       return meta;
-    } catch (e) { $('pThread').innerHTML = `<p class="err">לא הצלחתי לטעון (${e.message}).</p>`; }
+    } catch (e) { $('pThread').innerHTML = '<p class="err"></p>'; $('pThread').firstChild.textContent = `לא הצלחתי לטעון את הפרויקט. ${friendly(e)}`; }
   };
   const meta = await render();
   $('pSend').onclick = () => sendReply(num, meta, render);
@@ -326,7 +339,7 @@ function picker(dropId, inputId, thumbsId) {
       if (f.type.startsWith('image/')) { const im = document.createElement('img'); im.src = URL.createObjectURL(f); d.appendChild(im); }
       else if (f.type.startsWith('video/')) { const v = document.createElement('video'); v.src = URL.createObjectURL(f); v.muted = true; d.appendChild(v); }
       else d.textContent = f.name;
-      const x = document.createElement('button'); x.textContent = '×'; x.className = 'ghost';
+      const x = document.createElement('button'); x.type = 'button'; x.textContent = '×'; x.className = 'ghost'; x.setAttribute('aria-label', `הסרת ${f.name}`);
       x.onclick = (e) => { e.preventDefault(); files.splice(i, 1); draw(); };
       d.appendChild(x);
       thumbs.appendChild(d);
@@ -350,9 +363,10 @@ async function createProject() {
   const what = document.querySelector('input[name=what]:checked').value;
   const mode = document.querySelector('input[name=mode]:checked').value;
   const prog = (t, err) => { $('nProgress').textContent = t; $('nProgress').classList.toggle('err', !!err); };
-  if (!title || !brief) return prog('צריך שם ובריף.', true);
-  if (!newPick.files.length) return prog('צריך לצרף לפחות תמונה אחת.', true);
-  $('nSend').disabled = true;
+  if (!title) { $('nTitle').focus(); return prog('חסר שם לפרויקט.', true); }
+  if (!brief) { $('nBrief').focus(); return prog('חסר בריף: כמה מילים על העבודה.', true); }
+  if (!newPick.files.length) { $('nDrop').focus(); return prog('צריך לצרף לפחות תמונה אחת.', true); }
+  $('nSend').disabled = true; busy = true;
   try {
     const d = new Date();
     const latin = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30);
@@ -373,15 +387,15 @@ async function createProject() {
     const issue = await gh('/issues', { method: 'POST', body: { title, body, labels: [LABEL] } });
     newPick.clear(); $('nTitle').value = ''; $('nBrief').value = ''; prog('');
     location.hash = `#/p/${issue.number}`;
-  } catch (e) { prog(`משהו השתבש: ${e.message}`, true); }
-  $('nSend').disabled = false;
+  } catch (e) { prog(`הפרויקט לא נשלח. ${friendly(e)}`, true); }
+  $('nSend').disabled = false; busy = false;
 }
 
 async function sendReply(num, meta, render) {
   const text = $('pReply').value.trim();
   const prog = (t, err) => { $('pProgress').textContent = t; $('pProgress').classList.toggle('err', !!err); };
   if (!text && !replyPick.files.length) return;
-  $('pSend').disabled = true;
+  $('pSend').disabled = true; busy = true;
   try {
     let note = '';
     if (replyPick.files.length) {
@@ -398,8 +412,8 @@ async function sendReply(num, meta, render) {
     scrollToEnd();
     // GitHub takes a few seconds to queue the run; until then the badge would still say "waiting for you"
     if (!$('pStatus').classList.contains('work')) { $('pStatus').textContent = 'ההודעה נשלחה, הצוות מתחיל עוד רגע'; $('pStatus').className = 'badge work'; }
-  } catch (e) { prog(`משהו השתבש: ${e.message}`, true); }
-  $('pSend').disabled = false;
+  } catch (e) { prog(`ההודעה לא נשלחה, והיא עדיין כאן. ${friendly(e)}`, true); }
+  $('pSend').disabled = false; busy = false;
 }
 
 async function saveToken() {
@@ -411,11 +425,12 @@ async function saveToken() {
     if (!repo.permissions || !repo.permissions.push) throw new Error('למפתח אין הרשאת כתיבה לריפו');
     store.set(v); $('tokenIn').value = ''; $('setupErr').textContent = '';
     location.hash = '#/'; route();
-  } catch (e) { token = ''; $('setupErr').textContent = `המפתח לא עבד: ${e.message}`; }
+  } catch (e) { token = ''; $('setupErr').textContent = `המפתח לא עבד. ${e.status === 401 || e.status === 404 ? 'כדאי לבדוק שהעתקת אותו במלואו.' : friendly(e)}`; }
 }
 
 // ---------- wiring ----------
 $('tokenSave').onclick = saveToken;
+$('tokenIn').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveToken(); });
 $('pZip').onclick = () => {
   const media = readyFiles.items.filter((f) => MEDIA.test(f.name));
   saveAll(canShareFiles() ? media : readyFiles.items, $('pZip'), canShareFiles() ? 'שמירה לגלריה' : 'הורדת הכול');
@@ -430,7 +445,10 @@ $('navHome').onclick = () => { location.hash = '#/'; };
 $('navNew').onclick = () => { location.hash = '#/new'; };
 $('nCancel').onclick = () => { location.hash = '#/'; };
 $('nSend').onclick = createProject;
-$('logout').onclick = () => { store.set(''); token = ''; route(); };
+$('logout').onclick = () => {
+  if (!confirm('להתנתק? כדי לחזור יהיה צריך להדביק שוב את מפתח הגישה.')) return;
+  store.set(''); token = ''; route();
+};
 document.querySelectorAll('[data-quick]').forEach((b) => { b.onclick = () => { $('pReply').value = b.dataset.quick; $('pReply').focus(); }; });
 window.addEventListener('hashchange', route);
 route();
