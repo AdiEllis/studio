@@ -103,22 +103,44 @@ async function runsByIssue() {
 }
 
 // A message she sends while the team works waits in line (one run per project at a time), so say so.
+// Returns [full label, style, short label for the list, list group].
 function statusOf(runs, issue) {
-  if (issue.state === 'closed') return ['הסתיים', 'ok'];
-  if (!runs || !runs.length) return ['ממתין לצוות', 'work'];
+  if (issue.state === 'closed') return ['הסתיים', 'ok', 'הסתיים', 'done'];
+  if (!runs || !runs.length) return ['ממתין לצוות', 'work', 'בתור לצוות', 'work'];
   const active = runs.some((r) => r.status === 'in_progress');
   const waiting = runs.some((r) => ['queued', 'pending', 'waiting', 'requested'].includes(r.status));
-  if (active && waiting) return ['הצוות עובד, וההודעה שלך התקבלה ומחכה בתור', 'work'];
-  if (active) return ['הצוות עובד…', 'work'];
-  if (waiting) return ['ההודעה שלך התקבלה, הצוות מתחיל', 'work'];
+  if (active && waiting) return ['הצוות עובד, וההודעה שלך התקבלה ומחכה בתור', 'work', 'הצוות עובד', 'work'];
+  if (active) return ['הצוות עובד…', 'work', 'הצוות עובד', 'work'];
+  if (waiting) return ['ההודעה שלך התקבלה, הצוות מתחיל', 'work', 'הצוות מתחיל', 'work'];
   const last = runs[0];
-  if (last.conclusion === 'failure' || last.conclusion === 'timed_out') return ['נעצר בתקלה', 'bad'];
-  return ['ממתין לך', 'ok'];
+  if (last.conclusion === 'failure' || last.conclusion === 'timed_out') return ['נעצר בתקלה', 'bad', 'נעצר בתקלה', 'wait'];
+  return ['ממתין לך', 'wait', 'ממתין לך', 'wait'];
+}
+
+const dateFmt = new Intl.DateTimeFormat('he-IL', { day: 'numeric', month: 'long' });
+const icon = (id) => `<svg class="i" aria-hidden="true"><use href="#i-${id}"/></svg>`;
+
+// A project's face in the list: the first finished photo, else the first photo she uploaded.
+const thumbCache = new Map();
+function projectThumb(meta) {
+  if (!thumbCache.has(meta.slug)) {
+    const pick = async (dir) => {
+      const items = await gh(`/contents/projects/${meta.slug}/${dir}?ref=${encodeURIComponent(meta.branch)}`).catch(() => []);
+      return (items || []).find((f) => f.type === 'file' && /\.(jpe?g|png|webp)$/i.test(f.name));
+    };
+    thumbCache.set(meta.slug, (async () => {
+      const f = (await pick('output')) || (await pick('input'));
+      if (!f) return null;
+      return URL.createObjectURL(await fileBlob(f.path, meta.branch));
+    })().catch(() => null));
+  }
+  return thumbCache.get(meta.slug);
 }
 
 // ---------- views ----------
 function show(view) {
   for (const v of ['viewSetup', 'viewList', 'viewNew', 'viewProject']) $(v).classList.toggle('hidden', v !== view);
+  $('heroList').classList.toggle('hidden', view !== 'viewList');
   $('navHome').classList.toggle('hidden', view === 'viewList' || view === 'viewSetup');
   clearTimeout(pollTimer);
 }
@@ -139,19 +161,38 @@ async function route() {
 
 async function loadList() {
   const box = $('projList');
+  const h = new Date().getHours();
+  $('hello').textContent = h < 12 ? 'בוקר טוב' : h < 17 ? 'צהריים טובים' : 'ערב טוב';
   try {
     const [issues, runs] = await Promise.all([gh(`/issues?labels=${LABEL}&state=all&per_page=100`), runsByIssue()]);
+    const groups = { wait: [], work: [], done: [] };
+    for (const is of issues) { const st = statusOf(runs[is.number], is); groups[st[3]].push([is, st]); }
+    $('heroTitle').innerHTML = groups.wait.length ? 'יש <em>תוצרים</em> שמחכים לך' : groups.work.length ? 'הצוות <em>עובד</em> בשבילך' : 'מה <em>מפיקים</em> היום?';
     box.textContent = '';
-    if (!issues.length) { box.innerHTML = '<span class="hint">עוד אין פרויקטים. לוחצים על "פרויקט חדש".</span>'; return; }
-    for (const is of issues) {
-      const [label, cls] = statusOf(runs[is.number], is);
-      const a = document.createElement('a');
-      a.href = `#/p/${is.number}`;
-      a.innerHTML = `<span></span><span class="badge ${cls}">${label}</span>`;
-      a.firstChild.textContent = is.title;
-      box.appendChild(a);
+    if (!issues.length) {
+      box.innerHTML = `<div class="card empty"><span class="ic">${icon('photo')}</span><b>עוד אין פרויקטים</b><p class="hint" style="margin:0">מעלים תמונות של עבודה שסיימתם, והצוות מכין ממנה רילס ופוסט.</p></div>`;
+      return;
     }
-  } catch (e) { box.innerHTML = '<span class="err"></span>'; box.firstChild.textContent = `לא הצלחתי לטעון את הפרויקטים. ${friendly(e)}`; }
+    const titles = { wait: 'ממתינים לך', work: 'בעבודה', done: 'הסתיימו' };
+    for (const g of ['wait', 'work', 'done']) {
+      if (!groups[g].length) continue;
+      const sec = document.createElement('section'); sec.className = 'group';
+      sec.innerHTML = `<h3>${titles[g]}</h3>`;
+      for (const [is, [, cls, short]] of groups[g]) {
+        const a = document.createElement('a');
+        a.href = `#/p/${is.number}`;
+        a.className = `proj ${g === 'wait' && cls === 'wait' ? 'wait' : ''}`;
+        a.innerHTML = `<span class="thumb">${icon('photo')}</span><span class="body"><span class="t"></span><span class="d"></span><span class="pill ${cls}"></span></span><span class="chev">${icon('chev')}</span>`;
+        a.querySelector('.t').textContent = is.title;
+        a.querySelector('.d').textContent = `נפתח ב-${dateFmt.format(new Date(is.created_at))}`;
+        a.querySelector('.pill').textContent = short;
+        const meta = projectMeta(is);
+        if (meta) projectThumb(meta).then((u) => { if (u) a.querySelector('.thumb').innerHTML = `<img src="${u}" alt="">`; });
+        sec.appendChild(a);
+      }
+      box.appendChild(sec);
+    }
+  } catch (e) { box.innerHTML = '<p class="err"></p>'; box.firstChild.textContent = `לא הצלחתי לטעון את הפרויקטים. ${friendly(e)}`; }
 }
 
 async function openProject(num) {
@@ -168,7 +209,8 @@ async function openProject(num) {
       const meta = projectMeta(issue);
       $('pTitle').textContent = issue.title;
       const [label, cls] = statusOf(runs[num], issue);
-      $('pStatus').textContent = label; $('pStatus').className = `badge ${cls}`;
+      $('pStatus').textContent = label; $('pStatus').className = `pill ${cls}`;
+      $('pDate').textContent = `נפתח ב-${dateFmt.format(new Date(issue.created_at))}`;
       const thread = $('pThread');
       // rebuild only when something changed, so images and scroll position stay put between polls
       const key = [issue.body, ...comments.map((c) => c.id + c.updated_at)].join('|');
@@ -411,7 +453,7 @@ async function sendReply(num, meta, render) {
     await render();
     scrollToEnd();
     // GitHub takes a few seconds to queue the run; until then the badge would still say "waiting for you"
-    if (!$('pStatus').classList.contains('work')) { $('pStatus').textContent = 'ההודעה נשלחה, הצוות מתחיל עוד רגע'; $('pStatus').className = 'badge work'; }
+    if (!$('pStatus').classList.contains('work')) { $('pStatus').textContent = 'ההודעה נשלחה, הצוות מתחיל עוד רגע'; $('pStatus').className = 'pill work'; }
   } catch (e) { prog(`ההודעה לא נשלחה, והיא עדיין כאן. ${friendly(e)}`, true); }
   $('pSend').disabled = false; busy = false;
 }
