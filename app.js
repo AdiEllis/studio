@@ -20,6 +20,7 @@ let pollTimer = null;
 // ---------- GitHub API ----------
 async function gh(path, opts = {}) {
   const res = await fetch(path.startsWith('http') ? path : `${API}/repos/${OWNER}/${REPO}${path}`, {
+    cache: 'no-store', // GitHub lets browsers reuse answers for 60s; a change she just made must show at once
     ...opts,
     headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', ...(opts.body ? { 'Content-Type': 'application/json' } : {}) },
     body: opts.body ? JSON.stringify(opts.body) : undefined,
@@ -163,7 +164,8 @@ async function route() {
 // (her notes, the conversation, the finished files) stays in the repo for the team to learn from.
 // The site offers no way back, by her choice; the team ignores labels.
 const HIDDEN = 'studio-hidden';
-const isHidden = (is) => is.labels.some((l) => (l.name || l) === HIDDEN);
+const deleted = new Set();
+const isHidden = (is) => deleted.has(is.number) || is.labels.some((l) => (l.name || l) === HIDDEN);
 
 async function setHidden(num) {
   await gh('/labels', { method: 'POST', body: { name: HIDDEN, color: 'cccccc', description: 'נמחק מאתר הסטודיו; הצוות שומר ולומד' } }).catch(() => {});
@@ -190,6 +192,10 @@ async function hideProject(is, row) {
     await setHidden(is.number);
     toast(`"${is.title}" נמחק מהאתר.`);
   } catch (e) { row.classList.remove('leaving'); toast(`לא הצלחתי למחוק. ${friendly(e)}`); return; }
+  // GitHub's list can lag a few seconds behind the label: remember it here so the card never comes back
+  deleted.add(is.number);
+  const group = row.parentElement; row.remove();
+  if (group && !group.querySelector('.projrow')) group.remove();
   loadList();
 }
 
